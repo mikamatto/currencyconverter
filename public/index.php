@@ -3,9 +3,9 @@
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use Mikamatto\CurrencyConverter\Database;
-use Mikamatto\CurrencyConverter\ExternalApiClient;
 use Mikamatto\CurrencyConverter\ExchangeRateService;
 use Mikamatto\CurrencyConverter\Authentication;
+use Mikamatto\CurrencyConverter\Providers\ExchangeRatesApiProvider;
 
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
 $dotenv->load();
@@ -13,8 +13,8 @@ $config = require __DIR__ . '/../config/config.php';
 
 // Initialize services
 $database = new Database($config['db']);
-$api = new ExternalApiClient($config['api_key']);
-$service = new ExchangeRateService($database->getConnection(), $api);
+$provider = new ExchangeRatesApiProvider($config['api_key']);
+$service = new ExchangeRateService($database->getConnection(), $provider);
 $auth = new Authentication($config['api_secret'], $config['use_hash_validation'] ?? false);
 
 header('Content-Type: application/json');

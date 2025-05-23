@@ -9,6 +9,10 @@ A lightweight PHP API for currency conversion rates with caching capabilities. T
 - Local caching for common currency pairs (EUR, USD, BTC, GBP)
 - API authentication with bearer token
 - Optional hash-based validation for enhanced security
+- Pluggable exchange rate providers
+  - ExchangeRatesAPI provider included
+  - Fixer.io provider included
+  - Easy to add new providers
 
 ## Setup
 

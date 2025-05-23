@@ -3,17 +3,17 @@
 namespace Mikamatto\CurrencyConverter;
 
 use PDO;
-use Mikamatto\CurrencyConverter\ExternalApiClient;
+use Mikamatto\CurrencyConverter\Contracts\ExchangeRateProvider;
 use Exception;
 
 class ExchangeRateService {
-    private $pdo;
-    private $api;
-    private $cacheCurrencies = ['EUR', 'USD', 'BTC', 'GBP'];
+    private PDO $pdo;
+    private ExchangeRateProvider $provider;
+    private array $cacheCurrencies = ['EUR', 'USD', 'BTC', 'GBP'];
 
-    public function __construct(PDO $pdo, ExternalApiClient $api) {
+    public function __construct(PDO $pdo, ExchangeRateProvider $provider) {
         $this->pdo = $pdo;
-        $this->api = $api;
+        $this->provider = $provider;
     }
 
     public function getRate(string $fromCurrency, string $toCurrency, string $date = 'latest'): ?float {
@@ -29,7 +29,7 @@ class ExchangeRateService {
 
         // If not in DB, fetch from API
         try {
-            $rate = $this->api->fetchRate($fromCurrency, $toCurrency, $date);
+            $rate = $this->provider->fetchRate($fromCurrency, $toCurrency, $date);
             
             // Cache the rate if currencies are in the cache list
             if ($rate !== null && 
