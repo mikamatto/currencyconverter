@@ -1,9 +1,9 @@
 <?php
 
-namespace App;
+namespace Mikamatto\CurrencyConverter;
 
 use PDO;
-use App\ExternalApiClient;
+use Mikamatto\CurrencyConverter\ExternalApiClient;
 use Exception;
 
 class ExchangeRateService {

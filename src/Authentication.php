@@ -1,6 +1,6 @@
 <?php
 
-namespace App;
+namespace Mikamatto\CurrencyConverter;
 
 class Authentication {
     private $secretKey;

@@ -2,10 +2,10 @@
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
-use App\Database;
-use App\ExternalApiClient;
-use App\ExchangeRateService;
-use App\Authentication;
+use Mikamatto\CurrencyConverter\Database;
+use Mikamatto\CurrencyConverter\ExternalApiClient;
+use Mikamatto\CurrencyConverter\ExchangeRateService;
+use Mikamatto\CurrencyConverter\Authentication;
 
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
 $dotenv->load();
