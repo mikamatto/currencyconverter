@@ -5,7 +5,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 use Mikamatto\CurrencyConverter\Database;
 use Mikamatto\CurrencyConverter\ExchangeRateService;
 use Mikamatto\CurrencyConverter\Authentication;
-use Mikamatto\CurrencyConverter\Providers\ExchangeRatesApiProvider;
+use Mikamatto\CurrencyConverter\Providers\CurrencyLayerProvider;
 
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
 $dotenv->load();
@@ -13,7 +13,7 @@ $config = require __DIR__ . '/../config/config.php';
 
 // Initialize services
 $database = new Database($config['db']);
-$provider = new ExchangeRatesApiProvider($config['api_key']);
+$provider = new CurrencyLayerProvider($config['api_key']);
 $service = new ExchangeRateService($database->getConnection(), $provider);
 $auth = new Authentication($config['api_secret'], $config['use_hash_validation'] ?? false);
 
@@ -28,7 +28,7 @@ $date = $_GET['date'] ?? 'latest';
 if (!$from || !$to) {
     http_response_code(400);
     echo json_encode([
-        'error' => 'Missing required parameters',
+        'error' => 'INVALID_PARAMETERS',
         'message' => 'Both "from" and "to" currencies are required'
     ]);
     exit;
@@ -38,7 +38,7 @@ if (!$from || !$to) {
 if (!$auth->validateRequest(getallheaders(), $from, $to)) {
     http_response_code(401);
     echo json_encode([
-        'error' => 'Unauthorized',
+        'error' => 'UNAUTHORIZED',
         'message' => 'Invalid or missing authentication token'
     ]);
     exit;
@@ -49,7 +49,7 @@ if ($date !== 'latest') {
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || strtotime($date) > time()) {
         http_response_code(400);
         echo json_encode([
-            'error' => 'Invalid date',
+            'error' => 'INVALID_DATE',
             'message' => 'Date must be in YYYY-MM-DD format and not in the future'
         ]);
         exit;
