@@ -1,0 +1,13 @@
+RewriteEngine On
+
+# Only rewrite if the request is not a file or directory
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Rewrite everything to index.php
+RewriteRule ^ index.php [QSA,L]
+
+# Block access to dotfiles
+<FilesMatch "^\.">
+  Require all denied
+</FilesMatch>
