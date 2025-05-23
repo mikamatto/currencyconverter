@@ -4,45 +4,72 @@ namespace App;
 
 use PDO;
 use App\ExternalApiClient;
+use Exception;
 
 class ExchangeRateService {
     private $pdo;
     private $api;
-    private $baseCurrency;
+    private $cacheCurrencies = ['EUR', 'USD', 'BTC', 'GBP'];
 
-    public function __construct(PDO $pdo, ExternalApiClient $api, string $baseCurrency) {
+    public function __construct(PDO $pdo, ExternalApiClient $api) {
         $this->pdo = $pdo;
         $this->api = $api;
-        $this->baseCurrency = $baseCurrency;
     }
 
-    public function getRate(string $toCurrency, string $date = 'latest'): ?float {
-        if ($toCurrency === $this->baseCurrency) return 1.0;
+    public function getRate(string $fromCurrency, string $toCurrency, string $date = 'latest'): ?float {
+        if ($fromCurrency === $toCurrency) return 1.0;
 
-        // Try to get from DB
-        $stmt = $this->pdo->prepare("SELECT rate FROM rates WHERE base = :base AND target = :target AND rate_date = :date LIMIT 1");
+        $currentDate = $date === 'latest' ? date('Y-m-d') : $date;
+
+        // Try to get from DB first
+        $rate = $this->getRateFromDb($fromCurrency, $toCurrency, $currentDate);
+        if ($rate !== null) {
+            return $rate;
+        }
+
+        // If not in DB, fetch from API
+        try {
+            $rate = $this->api->fetchRate($fromCurrency, $toCurrency, $date);
+            
+            // Cache the rate if currencies are in the cache list
+            if ($rate !== null && 
+                in_array($fromCurrency, $this->cacheCurrencies) && 
+                in_array($toCurrency, $this->cacheCurrencies)) {
+                $this->saveRateToDb($fromCurrency, $toCurrency, $rate, $currentDate);
+            }
+
+            return $rate;
+        } catch (Exception $e) {
+            // Log error here if needed
+            return null;
+        }
+    }
+
+    private function getRateFromDb(string $from, string $to, string $date): ?float {
+        $stmt = $this->pdo->prepare(
+            "SELECT rate FROM rates WHERE base = :base AND target = :target AND rate_date = :date LIMIT 1"
+        );
         $stmt->execute([
-            'base' => $this->baseCurrency,
-            'target' => $toCurrency,
-            'date' => $date === 'latest' ? date('Y-m-d') : $date,
+            'base' => $from,
+            'target' => $to,
+            'date' => $date,
         ]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if ($row) return (float)$row['rate'];
+        return $row ? (float)$row['rate'] : null;
+    }
 
-        // Fetch from API
-        $rate = $this->api->fetchRate($this->baseCurrency, $toCurrency, $date);
-        if ($rate !== null && in_array($toCurrency, ['EUR', 'USD', 'BTC'])) {
-            // Save only if in allowed list
-            $insert = $this->pdo->prepare("INSERT INTO rates (base, target, rate, rate_date) VALUES (:base, :target, :rate, :date)");
-            $insert->execute([
-                'base' => $this->baseCurrency,
-                'target' => $toCurrency,
-                'rate' => $rate,
-                'date' => $date === 'latest' ? date('Y-m-d') : $date,
-            ]);
-        }
-
-        return $rate;
+    private function saveRateToDb(string $from, string $to, float $rate, string $date): void {
+        $stmt = $this->pdo->prepare(
+            "INSERT INTO rates (base, target, rate, rate_date) 
+             VALUES (:base, :target, :rate, :date) 
+             ON DUPLICATE KEY UPDATE rate = :rate"
+        );
+        $stmt->execute([
+            'base' => $from,
+            'target' => $to,
+            'rate' => $rate,
+            'date' => $date,
+        ]);
     }
 }
