@@ -8,6 +8,7 @@ ini_set('display_startup_errors', 1);
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use Mikamatto\ExchangeRates\Providers\CurrencyLayerProvider;
+use Mikamatto\ExchangeRates\Database;
 use Dotenv\Dotenv;
 
 // Load environment variables
@@ -48,6 +49,13 @@ try {
 
     // Early return for same currency conversion
     if ($from === $to) {
+        $db = new Database([
+            'host' => $_ENV['DB_HOST'],
+            'dbname' => $_ENV['DB_NAME'],
+            'user' => $_ENV['DB_USER'],
+            'pass' => $_ENV['DB_PASS'],
+            'caching_enabled' => $_ENV['CACHING_ENABLED'] ?? 'false'
+        ]);
         echo json_encode([
             'success' => true,
             'data' => [
@@ -61,16 +69,30 @@ try {
         exit;
     }
 
-    $provider = new CurrencyLayerProvider($_ENV['API_KEY'], true);
-    $rate = $provider->fetchRate($from, $to, $date);
+    // Initialize database with caching config
+    $db = new Database([
+        'host' => $_ENV['DB_HOST'],
+        'dbname' => $_ENV['DB_NAME'],
+        'user' => $_ENV['DB_USER'],
+        'pass' => $_ENV['DB_PASS'],
+        'caching_enabled' => $_ENV['CACHING_ENABLED'] ?? 'false'
+    ]);
 
+    $rate = null;
+    if ($db->isCachingEnabled() && $db->getConnection()) {
+        // Try to get rate from cache first
+        $rate = $db->getCachedRate($from, $to, $date);
+    }
+
+    // If not in cache or caching is disabled, fetch from API
     if ($rate === null) {
-        http_response_code(404);
-        echo json_encode([
-            'error' => 'Rate not found',
-            'message' => 'Exchange rate not available for the specified currencies and date'
-        ]);
-        exit;
+        $provider = new CurrencyLayerProvider($_ENV['API_KEY'], true);
+        $rate = $provider->fetchRate($from, $to, $date);
+
+        if ($db->isCachingEnabled() && $db->getConnection()) {
+            // Cache the rate for future use
+            $db->cacheRate($from, $to, $rate, $date);
+        }
     }
 
     // Format rate to ensure decimal format for small numbers
