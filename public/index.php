@@ -48,6 +48,16 @@ try {
     );
     $date = $_GET['date'] ?? null;
 
+    // Check authentication
+    if (!$auth->validateRequest(getallheaders(), $from, $to)) {
+        http_response_code(401);
+        echo json_encode([
+            'error' => 'Unauthorized',
+            'message' => 'Invalid or missing authentication token'
+        ]);
+        exit;
+    }
+
     if (!$from || !$to) {
         http_response_code(400);
         echo json_encode(['error' => 'Bad Request', 'message' => 'Missing required parameters']);
