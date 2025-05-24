@@ -4,23 +4,22 @@ A lightweight PHP API for currency exchange rates with caching capabilities. Des
 
 ## Features
 
-- Real-time exchange rates from multiple providers
-- Historical exchange rates with date support
-- Caching of frequently used currency pairs
+- Direct currency conversion
+- Real-time and historical exchange rates
+- Database caching for frequently requested pairs
 - Bearer token authentication
 - Standardized error responses
-- Provider-agnostic interface
+- Efficient API usage with minimal requests
 
-## Supported Providers
+## Provider
 
 ### CurrencyLayer
-- Supports historical rates back to 1999
-- Supports major currencies (USD, EUR, GBP, JPY, CHF, AUD, CAD, BTC)
+- Direct currency conversion with paid subscription
+- Historical rates back to 1999
+- Supports all major currencies and cryptocurrencies
+- Real-time exchange rates via `/live` endpoint
+- Historical rates via `/historical` endpoint
 - Requires API key from [currencylayer.com](https://currencylayer.com)
-
-### ExchangeRates API
-- Supports major currencies and cryptocurrencies
-- Requires API key from [exchangeratesapi.io](https://exchangeratesapi.io)
 
 ## Setup
 
@@ -64,12 +63,16 @@ mysql -u root -p exchangerates < database/schema.sql
    DB_USER=root
    DB_PASS=yourpassword
 
-   # API Authentication
-   API_SECRET=your_secret_here
-   USE_HASH_VALIDATION=false
+   # Caching Configuration
+   CACHING_ENABLED=true        # Set to false to disable database caching
 
-   # Provider Configuration
-   API_KEY=your_api_key
+   # Authentication Configuration
+   AUTH_ENABLED=true          # Set to false to disable authentication
+   API_SECRET=your_secret     # Secret for bearer token authentication
+   USE_HASH_VALIDATION=false  # Optional hash-based validation
+
+   # API Configuration
+   API_KEY=your_api_key       # Your CurrencyLayer API key
    ```
 4. Set up a MySQL database and import the schema from `database/schema.sql`
 
@@ -93,10 +96,56 @@ Authorization: Bearer hash_of(api_secret + from_currency + to_currency)
 ```
 GET /index.php?from=EUR&to=USD
 ```
+Response:
+```json
+{
+    "success": true,
+    "data": {
+        "from": "EUR",
+        "to": "USD",
+        "rate": "1.0876",
+        "date": "2025-05-24",
+        "timestamp": 1716561600
+    }
+}
+```
 
 #### Get Historical Exchange Rate
 ```
 GET /index.php?from=EUR&to=BTC&date=2024-01-01
+```
+Response:
+```json
+{
+    "success": true,
+    "data": {
+        "from": "EUR",
+        "to": "BTC",
+        "rate": "0.000023876",
+        "date": "2024-01-01",
+        "timestamp": 1704067200
+    }
+}
+```
+
+### Error Responses
+
+#### Rate Not Found
+```json
+{
+    "error": "Rate not found",
+    "message": "Exchange rate not available for the specified currencies and date"
+}
+```
+
+#### Cache Warning
+If caching is enabled but fails:
+```json
+{
+    "success": true,
+    "data": { ... },
+    "warning": "Rate retrieved but caching failed: Unable to connect to database"
+}
 ```
 
 ### Parameters

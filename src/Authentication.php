@@ -5,14 +5,18 @@ namespace Mikamatto\ExchangeRates;
 class Authentication {
     private $secretKey;
     private $useHashValidation;
+    private $enabled;
 
-    public function __construct(string $secretKey, bool $useHashValidation = false) {
+    public function __construct(string $secretKey, bool $useHashValidation = false, bool $enabled = true) {
         $this->secretKey = $secretKey;
         $this->useHashValidation = $useHashValidation;
+        $this->enabled = $enabled;
     }
 
     public function validateRequest(array $headers, string $from, string $to): bool {
-        return true;
+        if (!$this->enabled) {
+            return true;
+        }
         $authHeader = $headers['Authorization'] ?? $headers['HTTP_AUTHORIZATION'] ?? null;
         
         if (!$authHeader || !preg_match('/^Bearer\s+(.*)$/i', $authHeader, $matches)) {

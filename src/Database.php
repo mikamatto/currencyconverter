@@ -4,13 +4,19 @@ namespace Mikamatto\ExchangeRates;
 
 use PDO;
 use PDOException;
+use RuntimeException;
 
 class Database {
     private ?PDO $pdo = null;
     private bool $cachingEnabled;
 
-    public function __construct(array $config) {
-        $this->cachingEnabled = filter_var($config['caching_enabled'] ?? false, FILTER_VALIDATE_BOOLEAN);
+    public function __construct(
+        string $host,
+        string $dbname,
+        string $user,
+        string $pass
+    ) {
+        $this->cachingEnabled = filter_var($_ENV['CACHING_ENABLED'] ?? false, FILTER_VALIDATE_BOOLEAN);
         error_log("Caching enabled: " . ($this->cachingEnabled ? 'true' : 'false'));
         
         if (!$this->cachingEnabled) {
@@ -19,13 +25,13 @@ class Database {
         }
 
         try {
-            $dsn = "mysql:host={$config['host']};dbname={$config['dbname']};charset=utf8mb4";
+            $dsn = "mysql:host={$host};dbname={$dbname};charset=utf8mb4";
             error_log("Attempting to connect to database with DSN: $dsn");
             
             $this->pdo = new PDO(
                 $dsn,
-                $config['user'],
-                $config['pass'],
+                $user,
+                $pass,
                 [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
             );
             error_log("Successfully connected to database");
@@ -33,22 +39,16 @@ class Database {
             // Create the rates table if it doesn't exist
             $this->createRatesTable();
         } catch (PDOException $e) {
-            error_log("Failed to connect to database: " . $e->getMessage());
-            $this->pdo = null;
+            // If caching is enabled but DB fails, this is a critical error
+            $error = 'Database connection failed: ' . $e->getMessage();
+            error_log($error);
+            throw new RuntimeException($error);
         }
-        // Debug connection details
-        error_log("Attempting database connection with:");
-        error_log("Host: " . ($config['host'] ?? 'not set'));
-        error_log("Database: " . ($config['dbname'] ?? 'not set'));
-        error_log("User: " . ($config['user'] ?? 'not set'));
-
-        // In Docker environment, always use the container name as host
-        $dsn = "mysql:host=exchangerates_db;dbname={$config['dbname']};charset=utf8mb4";
 
         error_log("DSN: " . $dsn);
 
         try {
-            $this->pdo = new PDO($dsn, $config['user'], $config['pass'], [
+            $this->pdo = new PDO($dsn, $user, $pass, [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             ]);
         } catch (\PDOException $e) {
@@ -67,84 +67,113 @@ class Database {
 
     private function createRatesTable(): void {
         if (!$this->pdo) {
-            return;
+            throw new RuntimeException('No database connection available');
         }
 
         try {
-            error_log('Attempting to create exchange_rates table...');
-            $sql = "CREATE TABLE IF NOT EXISTS exchange_rates (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                from_currency VARCHAR(3) NOT NULL,
-                to_currency VARCHAR(3) NOT NULL,
+            error_log('Attempting to create exchange_rate table...');
+            $sql = "CREATE TABLE IF NOT EXISTS exchange_rate (
+                `from` VARCHAR(10) NOT NULL,
+                `to` VARCHAR(10) NOT NULL,
                 rate DECIMAL(20, 10) NOT NULL,
                 date DATE NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                INDEX idx_currency_pair_date (from_currency, to_currency, date)
+                PRIMARY KEY (`from`, `to`, date)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
             
             $result = $this->pdo->exec($sql);
             if ($result === false) {
                 $error = $this->pdo->errorInfo();
-                error_log('Failed to create table: ' . implode(', ', $error));
-            } else {
-                error_log('Successfully created/verified exchange_rates table');
+                throw new RuntimeException('Failed to create table: ' . implode(', ', $error));
             }
+            
+            // Verify the table exists by trying to select from it
+            $this->pdo->query('SELECT 1 FROM exchange_rate LIMIT 1');
+            error_log('Successfully created/verified exchange_rate table');
         } catch (PDOException $e) {
-            error_log('Failed to create rates table: ' . $e->getMessage());
+            $error = 'Failed to create/verify rates table: ' . $e->getMessage();
+            error_log($error);
+            throw new RuntimeException($error);
         }
     }
 
-    public function getCachedRate(string $from, string $to, ?string $date = null): ?float {
-        if (!$this->pdo || !$this->cachingEnabled) {
+    public function getRate(string $from, string $to, ?string $date = null): ?float {
+        if (!$this->cachingEnabled) {
             return null;
+        }
+        if (!$this->pdo) {
+            throw new RuntimeException('No database connection available');
         }
 
         try {
+            $date = $date ?: date('Y-m-d');
+            
+            // Try to get direct rate first
             $stmt = $this->pdo->prepare("
-                SELECT rate FROM exchange_rates
-                WHERE from_currency = :from
-                AND to_currency = :to
-                AND date = :date
-                AND created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
-                ORDER BY created_at DESC
-                LIMIT 1
+                SELECT rate FROM exchange_rate
+                WHERE `from` = :from AND `to` = :to AND date = :date
             ");
 
             $stmt->execute([
                 ':from' => $from,
                 ':to' => $to,
-                ':date' => $date ?: date('Y-m-d')
+                ':date' => $date
+            ]);
+
+            $result = $stmt->fetch(PDO::FETCH_COLUMN);
+            if ($result !== false) {
+                return (float)$result;
+            }
+
+            // Try reverse rate
+            $stmt = $this->pdo->prepare("
+                SELECT 1/rate FROM exchange_rate
+                WHERE `from` = :to AND `to` = :from AND date = :date
+            ");
+
+            $stmt->execute([
+                ':from' => $from,
+                ':to' => $to,
+                ':date' => $date
             ]);
 
             $result = $stmt->fetch(PDO::FETCH_COLUMN);
             return $result !== false ? (float)$result : null;
+
         } catch (PDOException $e) {
-            error_log('Failed to get cached rate: ' . $e->getMessage());
-            return null;
+            $error = 'Failed to get cached rate: ' . $e->getMessage();
+            error_log($error);
+            throw new RuntimeException($error);
         }
     }
 
-    public function cacheRate(string $from, string $to, float $rate, ?string $date = null): void {
+    public function saveRate(string $from, string $to, float $rate, ?string $date = null): void {
         error_log("Attempting to cache rate: $from to $to = $rate");
-        if (!$this->pdo || !$this->cachingEnabled) {
-            error_log("Cannot cache rate: " . (!$this->pdo ? 'No PDO connection' : 'Caching disabled'));
+        if (!$this->cachingEnabled) {
             return;
+        }
+        if (!$this->pdo) {
+            throw new RuntimeException('No database connection available');
         }
 
         try {
             $stmt = $this->pdo->prepare("
-                INSERT INTO exchange_rates (from_currency, to_currency, rate, date)
+                INSERT INTO exchange_rate (`from`, `to`, rate, date)
                 VALUES (:from, :to, :rate, :date)
+                ON DUPLICATE KEY UPDATE rate = :rate
             ");
 
-            $stmt->execute([
+            if (!$stmt->execute([
                 ':from' => $from,
                 ':to' => $to,
                 ':rate' => $rate,
                 ':date' => $date ?: date('Y-m-d')
-            ]);
+            ])) {
+                throw new RuntimeException('Failed to insert/update rate');
+            }
         } catch (PDOException $e) {
-            error_log('Failed to cache rate: ' . $e->getMessage());
+            $error = 'Failed to cache rate: ' . $e->getMessage();
+            error_log($error);
+            throw new RuntimeException($error);
         }
     }
 }

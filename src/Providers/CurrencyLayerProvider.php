@@ -22,6 +22,10 @@ class CurrencyLayerProvider implements ExchangeRateProvider
 
     public function fetchRate(string $from, string $to, ?string $date = null): float
     {
+        if ($from === $to) {
+            return 1.0;
+        }
+
         if ($date !== null && strtotime($date) < strtotime(self::EARLIEST_DATE)) {
             throw new InvalidArgumentException('DATE_OUT_OF_RANGE: Date is before earliest available date');
         }
@@ -42,7 +46,6 @@ class CurrencyLayerProvider implements ExchangeRateProvider
         error_log("From: " . $from);
         error_log("To: " . $to);
         error_log("Date: " . ($date ?: 'latest'));
-        error_log("API Key: " . substr($this->apiKey, 0, 8) . '...');
 
         $context = stream_context_create([
             'http' => [
@@ -55,23 +58,22 @@ class CurrencyLayerProvider implements ExchangeRateProvider
             ],
         ]);
 
-        error_log("Making API request to: " . $url . '?' . $queryParams);
         $response = @file_get_contents($url . '?' . $queryParams, false, $context);
         
         if ($response === false) {
             $error = error_get_last();
             error_log("CurrencyLayer API Error: " . ($error['message'] ?? 'No error message'));
-            error_log("Response Headers: " . print_r($http_response_header ?? [], true));
             throw new RuntimeException('NETWORK_ERROR: ' . ($error['message'] ?? 'Failed to fetch exchange rate'));
         }
 
         error_log("CurrencyLayer API Response: " . $response);
-        error_log("Response Headers: " . print_r($http_response_header ?? [], true));
         
         $data = json_decode($response, true);
         if (!is_array($data)) {
+            error_log("Invalid JSON response: " . $response);
             throw new RuntimeException('INVALID_RESPONSE: Invalid JSON response from API');
         }
+        error_log("API Response: " . json_encode($data, JSON_PRETTY_PRINT));
         
         if (!($data['success'] ?? false)) {
             $errorInfo = $data['error']['info'] ?? 'Unknown API error';
@@ -89,15 +91,13 @@ class CurrencyLayerProvider implements ExchangeRateProvider
         }
 
         $quotes = $data['quotes'] ?? [];
-        $expectedPair = $from . $to;
+        $quoteName = $from . $to;
         
-        // Get the direct rate if available
-        $rate = $quotes[$expectedPair] ?? null;
-        if ($rate === null) {
+        if (!isset($quotes[$quoteName])) {
             throw new RuntimeException('RATE_NOT_FOUND: Rate not found for ' . $from . ' to ' . $to);
         }
         
-        return (float) $rate;
+        return (float) $quotes[$quoteName];
     }
 
     public function isAvailable(): bool
