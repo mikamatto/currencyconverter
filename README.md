@@ -11,9 +11,14 @@ A lightweight PHP API for currency exchange rates with caching capabilities. Des
 - Standardized error responses
 - Efficient API usage with minimal requests
 
-## Provider
+## Exchange Rate Provider
 
-### CurrencyLayer
+This API currently supports CurrencyLayer as its exchange rate provider. To use a different provider:
+
+1. Create a new provider class in `src/Providers/` implementing the same interface as `CurrencyLayerProvider`
+2. Update the provider instantiation in `public/index.php`
+
+### CurrencyLayer Integration
 - Direct currency conversion with paid subscription
 - Historical rates back to 1999
 - Supports all major currencies and cryptocurrencies

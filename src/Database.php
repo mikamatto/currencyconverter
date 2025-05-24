@@ -17,16 +17,16 @@ class Database {
         string $pass
     ) {
         $this->cachingEnabled = filter_var($_ENV['CACHING_ENABLED'] ?? false, FILTER_VALIDATE_BOOLEAN);
-        error_log("Caching enabled: " . ($this->cachingEnabled ? 'true' : 'false'));
+
         
         if (!$this->cachingEnabled) {
-            error_log("Caching is disabled, skipping database connection");
+
             return;
         }
 
         try {
             $dsn = "mysql:host={$host};dbname={$dbname};charset=utf8mb4";
-            error_log("Attempting to connect to database with DSN: $dsn");
+
             
             $this->pdo = new PDO(
                 $dsn,
@@ -34,7 +34,7 @@ class Database {
                 $pass,
                 [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
             );
-            error_log("Successfully connected to database");
+
 
             // Create the rates table if it doesn't exist
             $this->createRatesTable();
@@ -45,7 +45,7 @@ class Database {
             throw new RuntimeException($error);
         }
 
-        error_log("DSN: " . $dsn);
+
 
         try {
             $this->pdo = new PDO($dsn, $user, $pass, [
@@ -71,7 +71,7 @@ class Database {
         }
 
         try {
-            error_log('Attempting to create exchange_rate table...');
+
             $sql = "CREATE TABLE IF NOT EXISTS exchange_rate (
                 `from` VARCHAR(10) NOT NULL,
                 `to` VARCHAR(10) NOT NULL,
@@ -88,7 +88,7 @@ class Database {
             
             // Verify the table exists by trying to select from it
             $this->pdo->query('SELECT 1 FROM exchange_rate LIMIT 1');
-            error_log('Successfully created/verified exchange_rate table');
+
         } catch (PDOException $e) {
             $error = 'Failed to create/verify rates table: ' . $e->getMessage();
             error_log($error);
@@ -147,7 +147,7 @@ class Database {
     }
 
     public function saveRate(string $from, string $to, float $rate, ?string $date = null): void {
-        error_log("Attempting to cache rate: $from to $to = $rate");
+
         if (!$this->cachingEnabled) {
             return;
         }

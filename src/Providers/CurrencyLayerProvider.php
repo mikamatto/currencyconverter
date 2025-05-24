@@ -41,11 +41,6 @@ class CurrencyLayerProvider implements ExchangeRateProvider
         ]);
 
         $fullUrl = $url . '?' . $queryParams;
-        error_log("CurrencyLayer API Request:");
-        error_log("URL: " . $fullUrl);
-        error_log("From: " . $from);
-        error_log("To: " . $to);
-        error_log("Date: " . ($date ?: 'latest'));
 
         $context = stream_context_create([
             'http' => [
@@ -66,14 +61,12 @@ class CurrencyLayerProvider implements ExchangeRateProvider
             throw new RuntimeException('NETWORK_ERROR: ' . ($error['message'] ?? 'Failed to fetch exchange rate'));
         }
 
-        error_log("CurrencyLayer API Response: " . $response);
         
         $data = json_decode($response, true);
         if (!is_array($data)) {
             error_log("Invalid JSON response: " . $response);
             throw new RuntimeException('INVALID_RESPONSE: Invalid JSON response from API');
         }
-        error_log("API Response: " . json_encode($data, JSON_PRETTY_PRINT));
         
         if (!($data['success'] ?? false)) {
             $errorInfo = $data['error']['info'] ?? 'Unknown API error';
