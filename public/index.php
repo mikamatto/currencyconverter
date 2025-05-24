@@ -47,6 +47,7 @@ try {
     if (!$from || !$to) {
         http_response_code(400);
         echo json_encode([
+            'success' => false,
             'error' => 'Bad Request',
             'message' => 'Missing required parameters: from and to currencies must be specified'
         ]);
@@ -63,6 +64,7 @@ try {
     if (!$auth->validateRequest(getallheaders(), $from, $to)) {
         http_response_code(401);
         echo json_encode([
+            'success' => false,
             'error' => 'Unauthorized',
             'message' => 'Invalid or missing authentication token'
         ]);
@@ -79,13 +81,11 @@ try {
     if ($from === $to) {
         echo json_encode([
             'success' => true,
-            'data' => [
-                'from' => $from,
-                'to' => $to,
-                'rate' => '1.00',
-                'date' => $date ?: date('Y-m-d'),
-                'timestamp' => time()
-            ]
+            'from' => $from,
+            'to' => $to,
+            'rate' => '1.00',
+            'date' => $date ?: date('Y-m-d'),
+            'timestamp' => time()
         ]);
         exit;
     }
@@ -142,6 +142,7 @@ try {
             error_log('Database connection error: ' . $e->getMessage());
             http_response_code(503);
             echo json_encode([
+                'success' => false,
                 'error' => 'Service Unavailable',
                 'message' => 'Database connection failed'
             ]);
@@ -150,6 +151,7 @@ try {
             error_log('Cache error: ' . $e->getMessage());
             http_response_code(503);
             echo json_encode([
+                'success' => false,
                 'error' => 'Service Unavailable',
                 'message' => 'Cache operation failed: ' . $e->getMessage()
             ]);
@@ -183,6 +185,7 @@ try {
     if ($rate === null) {
         http_response_code(404);
         echo json_encode([
+            'success' => false,
             'error' => 'Rate not found',
             'message' => 'Exchange rate not available for the specified currencies and date'
         ]);
@@ -194,13 +197,11 @@ try {
 
     $response = [
         'success' => true,
-        'data' => [
-            'from' => $from,
-            'to' => $to,
-            'rate' => (string)$formattedRate,
-            'date' => $date ?: date('Y-m-d'),
-            'timestamp' => time()
-        ]
+        'from' => $from,
+        'to' => $to,
+        'rate' => $formattedRate,
+        'date' => $date ?: date('Y-m-d'),
+        'timestamp' => time()
     ];
 
     // If caching was enabled but failed, include the error
@@ -212,5 +213,9 @@ try {
 } catch (\Exception $e) {
     error_log('Error in API call: ' . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['error' => 'Internal server error', 'message' => $e->getMessage()]);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Internal server error',
+        'message' => $e->getMessage()
+    ]);
 }
