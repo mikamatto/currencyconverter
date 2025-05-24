@@ -140,10 +140,20 @@ try {
             $rate = $db->getRate($from, $to, $date);
         } catch (\PDOException $e) {
             error_log('Database connection error: ' . $e->getMessage());
-            $cacheError = 'Database connection failed';
+            http_response_code(503);
+            echo json_encode([
+                'error' => 'Service Unavailable',
+                'message' => 'Database connection failed'
+            ]);
+            exit;
         } catch (RuntimeException $e) {
-            $cacheError = $e->getMessage();
-            error_log('Cache error: ' . $cacheError);
+            error_log('Cache error: ' . $e->getMessage());
+            http_response_code(503);
+            echo json_encode([
+                'error' => 'Service Unavailable',
+                'message' => 'Cache operation failed: ' . $e->getMessage()
+            ]);
+            exit;
         }
     }
 
