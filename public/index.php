@@ -72,12 +72,12 @@ try {
     // Try to get rate from cache if caching is enabled and it's a historical query
     if (filter_var($_ENV['CACHING_ENABLED'], FILTER_VALIDATE_BOOLEAN) && $date !== null) {
         try {
-            $db = new Database(
-                $_ENV['DB_HOST'],
-                $_ENV['DB_NAME'],
-                $_ENV['DB_USER'],
-                $_ENV['DB_PASS']
-            );
+            $db = new Database([
+                'host' => $_ENV['DB_HOST'],
+                'dbname' => $_ENV['DB_NAME'],
+                'user' => $_ENV['DB_USER'],
+                'pass' => $_ENV['DB_PASS']
+            ]);
             
             $rate = $db->getRate($from, $to, $date);
             if ($rate !== null) {
@@ -91,7 +91,8 @@ try {
                         'timestamp' => $date ? strtotime($date) : time()
                     ]
                 ];
-                echo json_encode($response);
+                // Force JSON to keep numeric strings as strings
+    echo json_encode($response, JSON_PRESERVE_ZERO_FRACTION);
                 exit;
             }
         } catch (Exception $e) {
@@ -105,12 +106,12 @@ try {
 
     try {
         // Initialize database
-        $db = new Database(
-            $_ENV['DB_HOST'],
-            $_ENV['DB_NAME'],
-            $_ENV['DB_USER'],
-            $_ENV['DB_PASS']
-        );
+        $db = new Database([
+            'host' => $_ENV['DB_HOST'],
+            'dbname' => $_ENV['DB_NAME'],
+            'user' => $_ENV['DB_USER'],
+            'pass' => $_ENV['DB_PASS']
+        ]);
 
         // If not in cache or caching failed, fetch from API
         if ($db->isCachingEnabled() && $date !== null) {
@@ -147,22 +148,15 @@ try {
         exit;
     }
 
-    // Format rate to ensure decimal format for small numbers
-    $formattedRate = number_format($rate, 10, '.', '');
-    // Remove trailing zeros while keeping at least 2 decimal places
-    $formattedRate = rtrim(rtrim($formattedRate, '0'), '.');
-    if (substr_count($formattedRate, '.') === 0) {
-        $formattedRate .= '.00';
-    } elseif (strlen($formattedRate) - strrpos($formattedRate, '.') - 1 < 2) {
-        $formattedRate .= '0';
-    }
+    // Rate is already formatted as string from Database.php
+    $formattedRate = $rate;
 
     $response = [
         'success' => true,
         'data' => [
             'from' => $from,
             'to' => $to,
-            'rate' => $formattedRate,
+            'rate' => (string)$formattedRate,
             'date' => $date ?: date('Y-m-d'),
             'timestamp' => time()
         ]
