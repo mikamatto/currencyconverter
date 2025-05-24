@@ -126,31 +126,25 @@ try {
     $cacheError = null;
     $db = null;
 
-    try {
-        // Test database connection
-        $db = new Database([
-            'host' => $_ENV['DB_HOST'],
-            'dbname' => $_ENV['DB_NAME'],
-            'user' => $_ENV['DB_USER'],
-            'pass' => $_ENV['DB_PASS']
-        ]);
+    // Only initialize database if caching is enabled
+    if (filter_var($_ENV['CACHING_ENABLED'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+        try {
+            $db = new Database([
+                'host' => $_ENV['DB_HOST'],
+                'dbname' => $_ENV['DB_NAME'],
+                'user' => $_ENV['DB_USER'],
+                'pass' => $_ENV['DB_PASS']
+            ]);
 
-        // If not in cache or caching failed, fetch from API
-        if ($db->isCachingEnabled() && $date !== null) {
-            // Try to get rate from cache first
+            // Try to get rate from cache
             $rate = $db->getRate($from, $to, $date);
+        } catch (\PDOException $e) {
+            error_log('Database connection error: ' . $e->getMessage());
+            $cacheError = 'Database connection failed';
+        } catch (RuntimeException $e) {
+            $cacheError = $e->getMessage();
+            error_log('Cache error: ' . $cacheError);
         }
-    } catch (\PDOException $e) {
-        error_log('Database connection error: ' . $e->getMessage());
-        http_response_code(503);
-        echo json_encode([
-            'error' => 'Service Unavailable',
-            'message' => 'Database connection failed'
-        ]);
-        exit;
-    } catch (RuntimeException $e) {
-        $cacheError = $e->getMessage();
-        error_log('Cache error: ' . $cacheError);
     }
 
     // If not in cache or caching failed, fetch from API
