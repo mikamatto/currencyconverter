@@ -22,10 +22,6 @@ class CurrencyLayerProvider implements ExchangeRateProvider
 
     public function fetchRate(string $from, string $to, ?string $date = null): float
     {
-        if ($from === $to) {
-            return 1.0;
-        }
-
         if ($date !== null && strtotime($date) < strtotime(self::EARLIEST_DATE)) {
             throw new InvalidArgumentException('DATE_OUT_OF_RANGE: Date is before earliest available date');
         }

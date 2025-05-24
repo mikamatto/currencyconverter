@@ -46,6 +46,21 @@ try {
         exit;
     }
 
+    // Early return for same currency conversion
+    if ($from === $to) {
+        echo json_encode([
+            'success' => true,
+            'data' => [
+                'from' => $from,
+                'to' => $to,
+                'rate' => '1.00',
+                'date' => $date ?: date('Y-m-d'),
+                'timestamp' => time()
+            ]
+        ]);
+        exit;
+    }
+
     $provider = new CurrencyLayerProvider($_ENV['API_KEY'], true);
     $rate = $provider->fetchRate($from, $to, $date);
 
@@ -58,16 +73,26 @@ try {
         exit;
     }
 
+    // Format rate to ensure decimal format for small numbers
+    $formattedRate = number_format($rate, 10, '.', '');
+    // Remove trailing zeros while keeping at least 2 decimal places
+    $formattedRate = rtrim(rtrim($formattedRate, '0'), '.');
+    if (substr_count($formattedRate, '.') === 0) {
+        $formattedRate .= '.00';
+    } elseif (strlen($formattedRate) - strrpos($formattedRate, '.') - 1 < 2) {
+        $formattedRate .= '0';
+    }
+
     echo json_encode([
         'success' => true,
         'data' => [
             'from' => $from,
             'to' => $to,
-            'rate' => $rate,
+            'rate' => $formattedRate,
             'date' => $date ?: date('Y-m-d'),
             'timestamp' => time()
         ]
-    ]);
+    ], JSON_PRESERVE_ZERO_FRACTION);
 } catch (\Exception $e) {
     error_log('Error in API call: ' . $e->getMessage());
     http_response_code(500);
