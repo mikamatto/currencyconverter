@@ -1,5 +1,5 @@
--- Create the rates table for caching exchange rates
-CREATE TABLE IF NOT EXISTS rates (
+-- Create the exchange_rate table for caching exchange rates
+CREATE TABLE IF NOT EXISTS exchange_rate (
     id INT AUTO_INCREMENT PRIMARY KEY,
     base VARCHAR(10) NOT NULL,
     target VARCHAR(10) NOT NULL,
@@ -11,5 +11,5 @@ CREATE TABLE IF NOT EXISTS rates (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Create indexes for faster lookups
-CREATE INDEX idx_base_target ON rates(base, target);
-CREATE INDEX idx_rate_date ON rates(rate_date);
+CREATE INDEX idx_base_target ON exchange_rate(base, target);
+CREATE INDEX idx_rate_date ON exchange_rate(rate_date);

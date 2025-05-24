@@ -1,83 +1,53 @@
 <?php
 
-// Set error handling to catch all errors
-set_error_handler(function($severity, $message, $file, $line) {
-    throw new ErrorException($message, 0, $severity, $file, $line);
-});
-
-// Handle all exceptions as JSON responses
-set_exception_handler(function(Throwable $e) {
-    http_response_code(500);
-    header('Content-Type: application/json');
-    echo json_encode([
-        'error' => 'INTERNAL_ERROR',
-        'message' => $e->getMessage(),
-        'details' => [
-            'file' => str_replace(__DIR__, '', $e->getFile()),
-            'line' => $e->getLine()
-        ]
-    ]);
-    exit;
-});
+// Enable error reporting
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
-use Mikamatto\ExchangeRates\Database;
-use Mikamatto\ExchangeRates\ExchangeRateService;
-use Mikamatto\ExchangeRates\Authentication;
 use Mikamatto\ExchangeRates\Providers\CurrencyLayerProvider;
+use Dotenv\Dotenv;
 
-$dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
+// Load environment variables
+$dotenv = Dotenv::createImmutable(__DIR__ . '/../');
 $dotenv->load();
-$config = require __DIR__ . '/../config/config.php';
 
-// Initialize services
-$database = new Database($config['db']);
-$provider = new CurrencyLayerProvider($config['api_key']);
-$service = new ExchangeRateService($database->getConnection(), $provider);
-$auth = new Authentication($config['api_secret'], $config['use_hash_validation'] ?? false);
-
+// Set content type to JSON
 header('Content-Type: application/json');
 
-// Get request parameters
-$from = $_GET['from'] ?? null;
-$to = $_GET['to'] ?? null;
-$date = $_GET['date'] ?? 'latest';
+// Add CORS headers
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET');
+header('Access-Control-Allow-Headers: Content-Type');
 
-// Validate required parameters
-if (!$from || !$to) {
-    http_response_code(400);
-    echo json_encode([
-        'error' => 'INVALID_PARAMETERS',
-        'message' => 'Both "from" and "to" currencies are required'
-    ]);
+// Handle preflight requests
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
     exit;
 }
 
-// Validate authentication
-if (!$auth->validateRequest(getallheaders(), $from, $to)) {
-    http_response_code(401);
-    echo json_encode([
-        'error' => 'UNAUTHORIZED',
-        'message' => 'Invalid or missing authentication token'
-    ]);
+// Only allow GET requests
+if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    http_response_code(405);
+    echo json_encode(['error' => 'Method Not Allowed', 'message' => 'Only GET requests are allowed']);
     exit;
-}
-
-// Validate date format if provided
-if ($date !== 'latest') {
-    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || strtotime($date) > time()) {
-        http_response_code(400);
-        echo json_encode([
-            'error' => 'INVALID_DATE',
-            'message' => 'Date must be in YYYY-MM-DD format and not in the future'
-        ]);
-        exit;
-    }
 }
 
 try {
-    $rate = $service->getRate($from, $to, $date);
+    $from = $_GET['from'] ?? null;
+    $to = $_GET['to'] ?? null;
+    $date = $_GET['date'] ?? null;
+
+    if (!$from || !$to) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Bad Request', 'message' => 'Missing required parameters']);
+        exit;
+    }
+
+    $provider = new CurrencyLayerProvider($_ENV['API_KEY'], true);
+    $rate = $provider->fetchRate($from, $to, $date);
 
     if ($rate === null) {
         http_response_code(404);
@@ -94,14 +64,12 @@ try {
             'from' => $from,
             'to' => $to,
             'rate' => $rate,
-            'date' => $date === 'latest' ? date('Y-m-d') : $date,
+            'date' => $date ?: date('Y-m-d'),
             'timestamp' => time()
         ]
     ]);
-} catch (Exception $e) {
+} catch (\Exception $e) {
+    error_log('Error in API call: ' . $e->getMessage());
     http_response_code(500);
-    echo json_encode([
-        'error' => 'Internal server error',
-        'message' => 'An error occurred while processing your request'
-    ]);
+    echo json_encode(['error' => 'Internal server error', 'message' => $e->getMessage()]);
 }

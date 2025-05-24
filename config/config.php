@@ -2,11 +2,13 @@
 
 return [
     'db' => [
-        'host' => getenv('DB_HOST'),
-        'dbname' => getenv('DB_NAME'),
-        'user' => getenv('DB_USER'),
-        'pass' => getenv('DB_PASS'),
+        'host' => $_ENV['DB_HOST'],
+        'dbname' => $_ENV['DB_NAME'],
+        'user' => $_ENV['DB_USER'],
+        'pass' => $_ENV['DB_PASS'],
     ],
-    'api_key' => getenv('API_KEY'),
-    'base_currency' => 'GBP',
+    'api_key' => $_ENV['API_KEY'],
+    'api_secret' => $_ENV['API_SECRET'],
+    'use_hash_validation' => filter_var($_ENV['USE_HASH_VALIDATION'] ?? false, FILTER_VALIDATE_BOOLEAN),
+    'base_currency' => $_ENV['BASE_CURRENCY'],
 ];
