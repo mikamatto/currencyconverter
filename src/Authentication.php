@@ -1,6 +1,6 @@
 <?php
 
-namespace Mikamatto\CurrencyConverter;
+namespace Mikamatto\ExchangeRates;
 
 class Authentication {
     private $secretKey;

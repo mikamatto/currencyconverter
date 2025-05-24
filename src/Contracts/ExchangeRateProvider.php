@@ -1,6 +1,6 @@
 <?php
 
-namespace Mikamatto\CurrencyConverter\Contracts;
+namespace Mikamatto\ExchangeRates\Contracts;
 
 interface ExchangeRateProvider
 {

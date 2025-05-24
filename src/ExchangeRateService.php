@@ -1,9 +1,9 @@
 <?php
 
-namespace Mikamatto\CurrencyConverter;
+namespace Mikamatto\ExchangeRates;
 
 use PDO;
-use Mikamatto\CurrencyConverter\Contracts\ExchangeRateProvider;
+use Mikamatto\ExchangeRates\Contracts\ExchangeRateProvider;
 use Exception;
 
 class ExchangeRateService {

@@ -1,17 +1,17 @@
 {
-    "name": "mikamatto/currency-converter",
-    "description": "A lightweight PHP currency conversion API with caching",
+    "name": "mikamatto/exchange-rates",
+    "description": "A lightweight PHP exchange rates API with database caching",
     "type": "project",
     "license": "MIT",
     "authors": [
         {
             "name": "Mikamatto",
-            "homepage": "https://github.com/Mikamatto"
+            "homepage": "https://github.com/mikamatto"
         }
     ],
     "autoload": {
         "psr-4": {
-            "Mikamatto\\CurrencyConverter\\": "src/"
+            "Mikamatto\\ExchangeRates\\": "src/"
         }
     },
     "require": {

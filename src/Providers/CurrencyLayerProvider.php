@@ -1,8 +1,8 @@
 <?php
 
-namespace Mikamatto\CurrencyConverter\Providers;
+namespace Mikamatto\ExchangeRates\Providers;
 
-use Mikamatto\CurrencyConverter\Contracts\ExchangeRateProvider;
+use Mikamatto\ExchangeRates\Contracts\ExchangeRateProvider;
 use InvalidArgumentException;
 use RuntimeException;
 

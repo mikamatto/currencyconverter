@@ -1,4 +1,4 @@
-# Currency Converter API
+# Exchange Rates API
 
 A lightweight PHP API for currency exchange rates with caching capabilities. Designed to work as a middleware between your application and exchange rate providers.
 
@@ -27,7 +27,7 @@ A lightweight PHP API for currency exchange rates with caching capabilities. Des
 1. **Clone the repository**
 ```bash
 git clone <repository-url>
-cd currency_converter
+cd exchange_rates
 ```
 
 2. **Set up environment variables**
@@ -43,13 +43,13 @@ Edit `.env` and set your values:
 3. **Create the database**
 ```bash
 mysql -u root -p
-CREATE DATABASE currency;
+CREATE DATABASE exchange_rates;
 exit;
 ```
 
 4. **Import database schema**
 ```bash
-mysql -u root -p currency < database/schema.sql
+mysql -u root -p exchange_rates < database/schema.sql
 ```
 
 ## Installation
@@ -60,7 +60,7 @@ mysql -u root -p currency < database/schema.sql
    ```env
    # Database Configuration
    DB_HOST=localhost
-   DB_NAME=currency
+   DB_NAME=exchange_rates
    DB_USER=root
    DB_PASS=yourpassword
 
@@ -168,15 +168,15 @@ Here's an example of how to integrate this API with your Symfony application:
 ```php
 <?php
 
-namespace App\Service\CurrencyConverter;
+namespace App\Service\ExchangeRates;
 
 use Mikamatto\BasikSuite\MoneyBundle\Entity\External\Currency;
-use Mikamatto\BasikSuite\MoneyBundle\Exception\CurrencyConverterException;
-use Mikamatto\BasikSuite\MoneyBundle\Contracts\CurrencyConverterInterface;
+use Mikamatto\BasikSuite\MoneyBundle\Exception\ExchangeRatesException;
+use Mikamatto\BasikSuite\MoneyBundle\Contracts\ExchangeRatesInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Psr\Log\LoggerInterface;
 
-class ApiCurrencyConverter implements CurrencyConverterInterface
+class ApiExchangeRates implements ExchangeRatesInterface
 {
     public function __construct(
         private readonly HttpClientInterface $httpClient,
@@ -203,12 +203,12 @@ class ApiCurrencyConverter implements CurrencyConverterInterface
 
             if (isset($data['error'])) {
                 throw match($data['error']) {
-                    'RATE_LIMIT_EXCEEDED' => CurrencyConverterException::rateLimitExceeded(),
-                    'DATE_OUT_OF_RANGE' => CurrencyConverterException::dateOutOfRange($date),
-                    'INVALID_PARAMETERS' => CurrencyConverterException::unsupportedCurrency(
+                    'RATE_LIMIT_EXCEEDED' => ExchangeRatesException::rateLimitExceeded(),
+                    'DATE_OUT_OF_RANGE' => ExchangeRatesException::dateOutOfRange($date),
+                    'INVALID_PARAMETERS' => ExchangeRatesException::unsupportedCurrency(
                         sprintf('%s to %s', $sourceCurrency?->getIsoCode(), $targetCurrency?->getIsoCode())
                     ),
-                    default => CurrencyConverterException::apiError($data['message'] ?? 'Unknown error'),
+                    default => ExchangeRatesException::apiError($data['message'] ?? 'Unknown error'),
                 };
             }
 
@@ -221,11 +221,11 @@ class ApiCurrencyConverter implements CurrencyConverterInterface
                 'date' => $date?->format('Y-m-d'),
             ]);
 
-            if ($e instanceof CurrencyConverterException) {
+            if ($e instanceof ExchangeRatesException) {
                 throw $e;
             }
 
-            throw CurrencyConverterException::networkError($e);
+            throw ExchangeRatesException::networkError($e);
         }
     }
 
@@ -242,10 +242,10 @@ And register it in your service configuration:
 ```yaml
 # config/services.yaml
 services:
-    App\Service\CurrencyConverter\ApiCurrencyConverter:
+    App\Service\ExchangeRates\ApiExchangeRates:
         arguments:
-            $apiUrl: '%env(CURRENCY_API_URL)%'
-            $apiToken: '%env(CURRENCY_API_TOKEN)%'
+            $apiUrl: '%env(EXCHANGE_RATES_API_URL)%'
+            $apiToken: '%env(EXCHANGE_RATES_API_TOKEN)%'
 ```
 
 This implementation:
