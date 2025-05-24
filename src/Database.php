@@ -12,17 +12,9 @@ class Database {
 
     public function __construct(array $config) {
         $this->cachingEnabled = filter_var($_ENV['CACHING_ENABLED'] ?? false, FILTER_VALIDATE_BOOLEAN);
-        // Debug connection details
-        error_log("Attempting database connection with:");
-        error_log("Host: " . ($config['host'] ?? 'not set'));
-        error_log("Database: " . ($config['dbname'] ?? 'not set'));
-        error_log("User: " . ($config['user'] ?? 'not set'));
-
         // In Docker, we need to use the container name as host
         $host = getenv('DOCKER_ENV') ? 'exchangerates_db' : $config['host'];
         $dsn = "mysql:host={$host};dbname={$config['dbname']};charset=utf8mb4";
-
-        error_log("DSN: " . $dsn);
 
         try {
             $this->pdo = new PDO($dsn, $config['user'], $config['pass'], [
