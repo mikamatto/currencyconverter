@@ -126,7 +126,14 @@ try {
     // If not in cache or caching failed, fetch from API
     if ($rate === null) {
         $provider = new CurrencyLayerProvider($_ENV['API_KEY'], true);
-        $rate = $provider->fetchRate($from, $to, $date);
+        $rawRate = $provider->fetchRate($from, $to, $date);
+        
+        // Format rate before saving
+        if ($rawRate < 0.01 && $rawRate > 0) {
+            $rate = number_format($rawRate, 10, '.', '');
+        } else {
+            $rate = number_format($rawRate, 8, '.', '');
+        }
 
         // Only try to cache historical rates if we don't have a previous cache error
         if ($date !== null && $cacheError === null && isset($db) && $db->isCachingEnabled()) {

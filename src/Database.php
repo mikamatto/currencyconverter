@@ -34,6 +34,36 @@ class Database {
         return $this->cachingEnabled;
     }
 
+    public function saveRate(string $from, string $to, string $rate, ?string $date = null): void {
+        if (!$this->cachingEnabled) {
+            return;
+        }
+
+        if (!$this->pdo) {
+            throw new RuntimeException('No database connection available');
+        }
+
+        try {
+            $stmt = $this->pdo->prepare("
+                INSERT INTO exchange_rate (`from`, `to`, rate, date)
+                VALUES (:from, :to, :rate, :date)
+                ON DUPLICATE KEY UPDATE rate = :rate
+            ");
+
+            if (!$stmt->execute([
+                ':from' => $from,
+                ':to' => $to,
+                ':rate' => $rate,
+                ':date' => $date ?: date('Y-m-d')
+            ])) {
+                throw new RuntimeException('Failed to insert/update rate');
+            }
+        } catch (PDOException $e) {
+            error_log('Failed to save rate: ' . $e->getMessage());
+            throw new RuntimeException('Failed to save rate');
+        }
+    }
+
     public function getRate(string $from, string $to, ?string $date = null): ?string {
         if (!$this->pdo) {
             throw new RuntimeException('No database connection available');
