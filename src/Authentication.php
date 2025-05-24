@@ -13,7 +13,7 @@ class Authentication {
         $this->enabled = $enabled;
     }
 
-    public function validateRequest(array $headers, string $from, string $to): bool {
+    public function validateRequest(array $headers, ?string $from = null, ?string $to = null): bool {
         if (!$this->enabled) {
             return true;
         }

@@ -38,15 +38,26 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 }
 
 try {
+    // Get request parameters
     $from = $_GET['from'] ?? null;
     $to = $_GET['to'] ?? null;
+    $date = $_GET['date'] ?? null;
+
+    // Validate required parameters first
+    if (!$from || !$to) {
+        http_response_code(400);
+        echo json_encode([
+            'error' => 'Bad Request',
+            'message' => 'Missing required parameters: from and to currencies must be specified'
+        ]);
+        exit;
+    }
     // Initialize authentication
     $auth = new Authentication(
         $_ENV['API_SECRET'],
-        filter_var($_ENV['USE_HASH_VALIDATION'], FILTER_VALIDATE_BOOLEAN),
-        filter_var($_ENV['AUTH_ENABLED'], FILTER_VALIDATE_BOOLEAN)
+        filter_var($_ENV['USE_HASH_VALIDATION'] ?? false, FILTER_VALIDATE_BOOLEAN),
+        filter_var($_ENV['AUTH_ENABLED'] ?? false, FILTER_VALIDATE_BOOLEAN)
     );
-    $date = $_GET['date'] ?? null;
 
     // Check authentication
     if (!$auth->validateRequest(getallheaders(), $from, $to)) {
@@ -113,9 +124,10 @@ try {
 
     $rate = null;
     $cacheError = null;
+    $db = null;
 
     try {
-        // Initialize database
+        // Test database connection
         $db = new Database([
             'host' => $_ENV['DB_HOST'],
             'dbname' => $_ENV['DB_NAME'],
@@ -128,6 +140,14 @@ try {
             // Try to get rate from cache first
             $rate = $db->getRate($from, $to, $date);
         }
+    } catch (\PDOException $e) {
+        error_log('Database connection error: ' . $e->getMessage());
+        http_response_code(503);
+        echo json_encode([
+            'error' => 'Service Unavailable',
+            'message' => 'Database connection failed'
+        ]);
+        exit;
     } catch (RuntimeException $e) {
         $cacheError = $e->getMessage();
         error_log('Cache error: ' . $cacheError);
