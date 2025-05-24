@@ -27,7 +27,7 @@ A lightweight PHP API for currency exchange rates with caching capabilities. Des
 1. **Clone the repository**
 ```bash
 git clone <repository-url>
-cd exchange_rates
+cd exchangerates
 ```
 
 2. **Set up environment variables**
@@ -43,13 +43,13 @@ Edit `.env` and set your values:
 3. **Create the database**
 ```bash
 mysql -u root -p
-CREATE DATABASE exchange_rates;
+CREATE DATABASE exchangerates;
 exit;
 ```
 
 4. **Import database schema**
 ```bash
-mysql -u root -p exchange_rates < database/schema.sql
+mysql -u root -p exchangerates < database/schema.sql
 ```
 
 ## Installation
@@ -60,7 +60,7 @@ mysql -u root -p exchange_rates < database/schema.sql
    ```env
    # Database Configuration
    DB_HOST=localhost
-   DB_NAME=exchange_rates
+   DB_NAME=exchangerates
    DB_USER=root
    DB_PASS=yourpassword
 
@@ -244,8 +244,8 @@ And register it in your service configuration:
 services:
     App\Service\ExchangeRates\ApiExchangeRates:
         arguments:
-            $apiUrl: '%env(EXCHANGE_RATES_API_URL)%'
-            $apiToken: '%env(EXCHANGE_RATES_API_TOKEN)%'
+            $apiUrl: '%env(exchangerates_API_URL)%'
+            $apiToken: '%env(exchangerates_API_TOKEN)%'
 ```
 
 This implementation:

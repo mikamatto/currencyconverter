@@ -1,5 +1,25 @@
 <?php
 
+// Set error handling to catch all errors
+set_error_handler(function($severity, $message, $file, $line) {
+    throw new ErrorException($message, 0, $severity, $file, $line);
+});
+
+// Handle all exceptions as JSON responses
+set_exception_handler(function(Throwable $e) {
+    http_response_code(500);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'error' => 'INTERNAL_ERROR',
+        'message' => $e->getMessage(),
+        'details' => [
+            'file' => str_replace(__DIR__, '', $e->getFile()),
+            'line' => $e->getLine()
+        ]
+    ]);
+    exit;
+});
+
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use Mikamatto\ExchangeRates\Database;
